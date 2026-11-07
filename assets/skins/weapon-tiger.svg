@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" role="img" aria-label="TIGER STRIPE weapon skin">
+<defs><filter id="g" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eb9933"/><stop offset="1" stop-color="#a46b24"/></linearGradient></defs>
+<rect width="100" height="80" rx="6" fill="#15110f"/>
+<path d="M30 37 L48 37 L44 70 L24 70 Z" fill="#1a1412"/>
+<rect x="22" y="34" width="56" height="7" fill="#d1701a"/>
+<path d="M48 41 Q52 52 60 41" fill="none" stroke="#d1701a" stroke-width="2.5"/>
+<rect x="14" y="20" width="74" height="15" rx="1.5" fill="url(#m)"/>
+<rect x="88" y="23" width="6" height="7" fill="#a75a14"/>
+<path d="M22 20 L27 20 L21 35 L16 35 Z" fill="#0f0d0a"/><path d="M34 20 L39 20 L33 35 L28 35 Z" fill="#0f0d0a"/><path d="M46 20 L51 20 L45 35 L40 35 Z" fill="#0f0d0a"/><path d="M58 20 L63 20 L57 35 L52 35 Z" fill="#0f0d0a"/><path d="M70 20 L75 20 L69 35 L64 35 Z" fill="#0f0d0a"/><path d="M82 20 L87 20 L81 35 L76 35 Z" fill="#0f0d0a"/><path d="M28 44 L42 41 L41 46 L27 49 Z M26 58 L40 55 L39 60 L25 63 Z" fill="#0f0d0a"/>
+<rect x="82" y="17.5" width="3" height="3" fill="#ffe9b0"/>
+</svg>

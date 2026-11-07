@@ -1,0 +1,15 @@
+{
+  "name": "bullet-time",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An original zero-dependency WebGL first-person shooter with bullet time",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "skins": "node scripts/skins.mjs",
+    "serve": "python3 -m http.server 8000"
+  },
+  "engines": { "node": ">=22" }
+}

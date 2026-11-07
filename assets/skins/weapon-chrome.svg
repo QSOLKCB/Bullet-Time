@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" role="img" aria-label="CHROME NOIR weapon skin">
+<defs><filter id="g" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dbe0eb"/><stop offset="1" stop-color="#9a9da4"/></linearGradient></defs>
+<rect width="100" height="80" rx="6" fill="#15110f"/>
+<path d="M30 37 L48 37 L44 70 L24 70 Z" fill="#121214"/>
+<rect x="22" y="34" width="56" height="7" fill="#9ea6b3"/>
+<path d="M48 41 Q52 52 60 41" fill="none" stroke="#9ea6b3" stroke-width="2.5"/>
+<rect x="14" y="20" width="74" height="15" rx="1.5" fill="url(#m)"/>
+<rect x="88" y="23" width="6" height="7" fill="#7e858f"/>
+<rect x="14" y="20" width="74" height="4.5" fill="#141417"/>
+<rect x="82" y="17.5" width="3" height="3" fill="#ffe9b0"/>
+</svg>
