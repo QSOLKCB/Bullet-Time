@@ -340,6 +340,39 @@ test('navigation routes around thin cover between open cells with body clearance
   assert.ok(reachedSight, 'the grunt escapes the barrier and gains sight of the player');
 });
 
+test('navigation recovers from closed source cells using a reachable open centre', () => {
+  const cover = boxAt(2.05, 1, 0, 0.1, 2, 1);
+  const nav = new Navigation([cover], {minX:-1, maxX:7, minZ:-3, maxZ:5});
+  for (const [x, goalX] of [[1.55, 0], [2.55, 4]]) {
+    assert.equal(nav.open[nav.cell(x, 0)], 0, 'a valid body position rounds to blocked cover');
+    const goal = nav.toward(x, 0, goalX, 0);
+    assert.deepEqual(goal, [goalX, 0], 'recovery stays on the reachable side of cover');
+    const body = {x, y:0, z:0};
+    assert.equal(moveBody(body, goal[0]-x, goal[1], [cover], 0.42, 2.2), false);
+    near(body.x, goal[0]); near(body.z, goal[1]);
+  }
+  // If the target's flow field is behind a wall, stay at the valid position
+  // instead of aiming into the closed cell or choosing an unreachable centre.
+  const sealed = new Navigation([cover, boxAt(3, 1, 1, 0.1, 2, 20)], {minX:-1, maxX:7, minZ:-3, maxZ:5});
+  assert.deepEqual(sealed.toward(1.55, 0, 6, 0), [1.55, 0]);
+});
+
+test('a grunt beside the ticket booth escapes its closed cell and gains sight', () => {
+  const game = new Game('practice'); game.breakTimer = 999;
+  const bot = game.spawnBot('grunt'); Object.assign(bot, {x:-20, z:-28});
+  assert.equal(game.navigation.open[game.navigation.cell(bot.x, bot.z)], 0);
+  const goal = game.navigation.toward(bot.x, bot.z, game.player.x, game.player.z);
+  assert.ok(game.navigation.open[game.navigation.cell(...goal)], 'the initial goal is an open cell');
+  const body = {x:bot.x, y:bot.y, z:bot.z};
+  assert.equal(moveBody(body, goal[0]-body.x, goal[1]-body.z, game.world.solids, 0.42, 2.2), false, 'the initial goal is reachable without hitting cover');
+  let sightAt = null;
+  for (let i = 0; i < 10800; i++) {
+    game.step(TICK);
+    if (game.botSight(bot).visible && sightAt === null) sightAt = (i+1)*TICK;
+  }
+  assert.ok(sightAt !== null, 'the grunt acquires sight within the 90-second reproduction');
+});
+
 test('skin assets: every skin is complete, stored choices are validated and patterns draw decals', async () => {
   const {WEAPON_SKINS, ENEMY_SKINS, DEFAULT_SKINS, normalizeSkins, weaponPattern} = await import('../src/skins.js');
   const {readFile} = await import('node:fs/promises');

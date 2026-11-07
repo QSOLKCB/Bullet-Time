@@ -1,5 +1,5 @@
 // Increment this revision whenever any cached runtime file changes.
-const REVISION = 'v1.1.0-2';
+const REVISION = 'v1.1.0-3';
 // Scope-specific prefix: never touches caches of other games on the same origin.
 const PREFIX = `bullet-time:${self.registration.scope}:`;
 const CACHE = PREFIX + REVISION;

@@ -1,3 +1,5 @@
+import {rayBox} from './math.js';
+
 // One shared flow field for every enemy (adapted from QSOLKCB/QUICKSCOPER).
 // Recomputed only when the player changes grid cells; typed scratch arrays are
 // reused (OPT-INV-001 invariant-driven reuse). Cardinal routes never cut corners.
@@ -37,6 +39,23 @@ export class Navigation {
   }
   adjacent(i) { const x = i % this.width; return [x ? i-1 : -1, x < this.width-1 ? i+1 : -1, i-this.width, i+this.width]; }
   neighbors(i) { return this.routes[i]; }
+  recover(x, z) {
+    let best = -1, nearest = Infinity;
+    const origin = [x, 0, z];
+    for (let i = 0; i < this.open.length; i++) if (this.open[i] && this.distance[i] >= 0) {
+      const [nx, nz] = this.point(i), d = (nx-x)**2 + (nz-z)**2;
+      if (d >= nearest) continue;
+      // Sweep from the actual body position, not the obstructed grid centre.
+      // Recovery uses the enemy collision radius; grid edges reserve 0.5 m.
+      const direction = [nx-x, 0, nz-z];
+      const blocked = this.solids.some(b => b.min[1] < 2.2 && b.max[1] > 0.01 && rayBox(origin, direction, {
+        min:[b.min[0]-0.42, b.min[1]-2.2, b.min[2]-0.42],
+        max:[b.max[0]+0.42, b.max[1], b.max[2]+0.42]
+      }, 1) !== null);
+      if (!blocked) { best = i; nearest = d; }
+    }
+    return best < 0 ? [x, z] : this.point(best);
+  }
   toward(x, z, px, pz) {
     let target = this.cell(px, pz);
     if (!this.open[target]) {
@@ -51,7 +70,9 @@ export class Navigation {
         for (const n of this.neighbors(i)) if (n >= 0 && n < this.open.length && this.open[n] && this.distance[n] < 0) { this.distance[n] = this.distance[i] + 1; this.queue[tail++] = n; }
       }
     }
-    const cell = this.cell(x, z); let best = cell, value = this.distance[cell] < 0 ? 32767 : this.distance[cell];
+    const cell = this.cell(x, z);
+    if (!this.open[cell]) return this.recover(x, z);
+    let best = cell, value = this.distance[cell] < 0 ? 32767 : this.distance[cell];
     for (const n of this.neighbors(cell)) if (n >= 0 && n < this.open.length && this.distance[n] >= 0 && this.distance[n] < value) { best = n; value = this.distance[n]; }
     return this.point(best);
   }
