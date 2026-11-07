@@ -1,0 +1,17 @@
+BULLET TIME
+Copyright 2026 QSOLKCB contributors. Licensed under the Apache License, Version 2.0.
+
+This game is original work. It is not affiliated with, and contains no assets,
+names, characters, maps, music or code from, any commercial game.
+
+It reuses and adapts code from these QSOLKCB projects (Apache-2.0):
+  - QUICKSCOPER: matrix/ray math, batched-box WebGL renderer, flow-field
+    navigation, synthesized Web Audio structure, Xbox standard-mapping input,
+    app lifecycle (pause, pointer lock, focus loss), offline service worker.
+  - VANILLAJS: fixed-step accumulator (modules/time FixedClock) and the
+    swept, constant-velocity projectile model (modules/projectiles).
+  - AFTER-ZERO: the idea of a separate world clock for slow motion with a
+    draining/refilling meter.
+  - OPT: optimisation patterns applied - invariant-driven reuse (static level
+    mesh uploaded once, glass mesh rebuilt only when a pane breaks, cached flow
+    field), bounded pools and caps for particles, shards, rings and corpses.

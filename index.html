@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#120f0d">
+  <meta name="description" content="BULLET TIME: an original first-person shooter about slowing the world down. Dive through glass, watch bullets cross the room, and dodge them. Pure WebGL and Web Audio.">
+  <title>BULLET TIME / Slow the world.</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="world" aria-label="Terminal Nine, a three-dimensional transit concourse arena"></canvas>
+  <canvas id="overlay" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main id="menu" class="menu">
+    <header class="masthead"><a href="./" class="wordmark" aria-label="Bullet Time home"><span class="brand-symbol">⧗</span> BT / BULLET TIME</a><span class="edition">TERMINAL NINE <i></i> CASE FILE 01</span></header>
+    <section class="hero" aria-labelledby="title">
+      <p class="eyebrow"><span class="signal"></span> SINGLE PLAYER · FIRST PERSON · SLOW MOTION</p>
+      <h1 id="title">BULLET<span>TIME<span class="period">.</span></span></h1>
+      <p class="tagline">Slow the world. Never your aim.</p>
+      <p class="intro">Every bullet in the room is real and in flight. Bend time to watch them come,<br>dive through the glass, and answer before they land.</p>
+      <div class="mode-select" role="group" aria-label="Game mode">
+        <button id="mode-run" class="mode active" aria-pressed="true"><span class="mode-no">01</span><span><strong>THE GAUNTLET</strong><small>Endless waves · one life · score attack</small></span><span class="mode-indicator">↗</span></button>
+        <button id="mode-practice" class="mode" aria-pressed="false"><span class="mode-no">02</span><span><strong>THE RANGE</strong><small>Practice · no incoming fire</small></span><span class="mode-indicator">↗</span></button>
+      </div>
+      <div class="profile-row"><label for="profile">CONTROLS</label><select id="profile"><option value="mouse">Keyboard + mouse</option><option value="xbox">Xbox controller</option></select></div>
+      <div class="launch-row"><button id="start" class="primary">STEP INTO THE TERMINAL <span>↗</span></button><button id="skins-open" class="icon-button" aria-label="Open skins" title="Skins">◈</button><button id="settings-open" class="icon-button" aria-label="Open settings" title="Settings">⚙</button></div>
+      <p id="menu-note" class="micro">KEYBOARD + MOUSE · ESC TO PAUSE</p>
+      <p id="controller-status" class="micro" role="status">XBOX: CONNECT, THEN PRESS A BUTTON</p>
+      <p id="error" class="error" role="alert" hidden></p>
+    </section>
+    <aside class="location-card"><span class="cross-corner">+</span><span class="eyebrow">LOCATION / 009</span><h2>TERMINAL NINE</h2><p>Marble, glass and nowhere to run.</p><div class="location-meta"><span>ORIGINAL ARENA</span><span>44 × 64 M</span></div></aside>
+    <footer class="menu-footer">
+      <div class="control-guide"><span><kbd id="guide-focus">Q / RMB</kbd> BULLET TIME</span><span><kbd id="guide-dive">SHIFT</kbd> SHOOTDODGE</span><span><kbd id="guide-fire">LMB</kbd> FIRE</span><span><kbd id="guide-weapons">1 2 3</kbd> WEAPONS</span><button id="help-open" class="text-button">ALL CONTROLS ↗</button></div>
+      <div class="footer-meta"><span id="offline-status">OFFLINE COPY PENDING</span><span id="best-score">PERSONAL BEST —</span><span>QSOL / v1.0.0</span></div>
+    </footer>
+  </main>
+
+  <section id="hud" class="hud" aria-label="Game status" hidden>
+    <div class="hud-top">
+      <div class="hud-brand">⧗ <b>BULLET TIME</b><small id="hud-mode">THE GAUNTLET</small></div>
+      <div class="wave"><span id="wave">WAVE 01</span><small id="wave-label">HOSTILES 0</small></div>
+      <div class="score"><small>SCORE</small><b id="score">000000</b><span id="combo">CHAIN KILLS FOR A MULTIPLIER</span></div>
+    </div>
+    <div id="announcement" class="announcement" aria-live="polite"></div>
+    <div id="kill-feed" class="kill-feed"></div>
+    <div class="hud-bottom">
+      <div class="vitals">
+        <small>VITALS <span id="health-value">100</span></small><div class="track health-track"><i id="health-bar"></i></div>
+        <small class="focus-label">BULLET TIME <span id="focus-value">70</span></small><div class="track focus-track"><i id="focus-bar"></i><span class="focus-min"></span></div>
+        <span id="status-text">Q / RMB BULLET TIME · SHIFT SHOOTDODGE</span>
+      </div>
+      <div class="weapon-info">
+        <div class="slots"><span id="slot-0" class="slot">1 TWIN</span><span id="slot-1" class="slot">2 BREACHER</span><span id="slot-2" class="slot">3 VECTOR</span></div>
+        <small id="weapon-name">TWIN .45 / DUAL PISTOLS</small><div><b id="ammo">24</b><span id="ammo-max"> / 24</span></div><span id="weapon-status">READY</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="pause" class="modal-layer" aria-labelledby="pause-title" hidden>
+    <div class="panel pause-panel"><p class="eyebrow">TIME STANDS STILL</p><h2 id="pause-title">FROZEN.</h2><p>Nothing moves until you do.</p><button id="resume" class="primary">BACK INTO IT <span>↗</span></button><button id="pause-settings" class="secondary">SETTINGS</button><button id="pause-skins" class="secondary">SKINS</button><div class="split"><button id="restart" class="text-button">RESTART</button><button id="quit" class="text-button">RETURN TO MENU</button></div><p id="lock-message" class="micro" role="status"></p></div>
+  </section>
+
+  <section id="results" class="modal-layer" aria-labelledby="results-title" hidden>
+    <div class="panel results-panel"><p id="results-eyebrow" class="eyebrow">CASE CLOSED</p><h2 id="results-title">YOU WENT DOWN SWINGING.</h2><div class="result-score"><span id="final-score">0</span><small id="record-label">FINAL SCORE</small></div><div id="results-grid" class="results-grid"></div><p id="rank" class="rank"></p><button id="play-again" class="primary">RUN IT BACK <span>↗</span></button><button id="results-menu" class="text-button">RETURN TO MENU</button></div>
+  </section>
+
+  <dialog id="settings" class="panel settings-panel"><form method="dialog">
+    <button class="close" aria-label="Close settings">×</button><p class="eyebrow">DIAL IT IN</p><h2>YOUR SETUP.</h2>
+    <label for="control-profile">Control profile</label><select id="control-profile"><option value="mouse">Keyboard + mouse</option><option value="xbox">Xbox controller</option></select>
+    <p id="controller-settings-status" class="micro" role="status"></p>
+    <label for="sensitivity">Mouse sensitivity <output id="sens-output">1.00</output></label><input id="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="1">
+    <label for="pad-sensitivity">Controller look speed <output id="pad-output">1.00</output></label><input id="pad-sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="1">
+    <label for="deadzone">Stick deadzone <output id="deadzone-output">16%</output></label><input id="deadzone" type="range" min="0.05" max="0.35" step="0.01" value="0.16">
+    <label for="volume">Master volume <output id="volume-output">50%</output></label><input id="volume" type="range" min="0" max="1" step="0.05" value="0.5">
+    <label for="music-volume">Music <output id="music-output">30%</output></label><input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.3">
+    <label class="checkbox"><input id="focus-hold" type="checkbox"> Hold for bullet time (instead of toggle)</label>
+    <label class="checkbox"><input id="killcam" type="checkbox" checked> Final-kill bullet camera</label>
+    <label class="checkbox"><input id="invert" type="checkbox"> Invert vertical look</label>
+    <label class="checkbox"><input id="reduced" type="checkbox"> Reduced motion &amp; flashes</label>
+    <label class="checkbox"><input id="low-quality" type="checkbox"> Lower resolution &amp; fewer particles</label>
+    <p class="micro">Settings and personal best stay on this device.</p><button class="primary">ALL SET <span>✓</span></button>
+  </form></dialog>
+
+  <dialog id="skins" class="panel skins-panel"><form method="dialog">
+    <button class="close" aria-label="Close skins">×</button><p class="eyebrow">THE WARDROBE</p><h2>DRESS THE PART.</h2>
+    <p>Pick a finish for each gun and a look for the opposition. Skins are cosmetic only.</p>
+    <div id="skin-groups"></div>
+    <p class="micro">Choices stay on this device.</p><button class="primary">LOOKING SHARP <span>✓</span></button>
+  </form></dialog>
+
+  <dialog id="help" class="panel help-panel"><form method="dialog"><button class="close" aria-label="Close controls">×</button><p class="eyebrow">THE FIELD MANUAL</p><h2>BEND THE SECOND.</h2>
+    <p><b>Bullet time</b> slows the world to under a quarter speed. Your aim stays at full speed, you move at half speed and your guns cycle almost normally. It drains the hourglass meter; kills refill it, and it slowly recovers to 30% on its own.</p>
+    <p><b>Shootdodge:</b> press Shift (or B) while moving to launch into a slow-motion dive in that direction. With no direction you dive backwards. Diving is free, makes you hard to hit and doubles as a way through glass. You land on your back for a moment; you can still shoot from the floor.</p>
+    <div class="help-controls"><span>Action</span><b>KEYBOARD / XBOX</b><span>Move</span><kbd>WASD / LEFT STICK</kbd><span>Look</span><kbd>MOUSE / RIGHT STICK</kbd><span>Fire</span><kbd>LMB / RT</kbd><span>Bullet time</span><kbd>Q or RMB / LT</kbd><span>Shootdodge</span><kbd>SHIFT / B</kbd><span>Jump</span><kbd>SPACE / A</kbd><span>Hold crouch</span><kbd>C or CTRL / RS CLICK</kbd><span>Reload</span><kbd>R / X</kbd><span>Weapons</span><kbd>1 2 3 or WHEEL / Y, LB, RB</kbd><span>Pause</span><kbd>ESC or P / MENU</kbd></div>
+    <p>Enemy rounds are real projectiles: watch for the red glow at their muzzle, then move. A near miss whistles past you. In bullet time you can see every round coming and step out of its way.</p>
+    <p class="micro">KILL +100 · HEADSHOT +50 · IN BULLET TIME +50 · MID-DIVE +100 · LONG SHOT +50 · CHAIN UP TO 5×<br>WAVE CLEAR +250 × WAVE · M TO MUTE</p><button class="primary">GOT IT <span>↗</span></button>
+  </form></dialog>
+  <noscript><div class="noscript">BULLET TIME needs JavaScript enabled to run.</div></noscript>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

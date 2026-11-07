@@ -1,0 +1,61 @@
+name: Test and deploy BULLET TIME
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bullet-time-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check scripts and assets
+        run: node scripts/check.mjs
+      - name: Test gameplay contracts
+        run: npm test
+      - name: Package static game
+        run: npm run build
+      - name: Install isolated browser test tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/bt-browser" --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/bt-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Browser smoke test (packaged build)
+        run: NODE_PATH="$RUNNER_TEMP/bt-browser/node_modules" node scripts/browser-check.cjs dist
+      - name: Save browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bullet-time-browser
+          path: artifacts/
+          if-no-files-found: ignore
+      - name: Upload tested Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy tested build
+        id: deployment
+        uses: actions/deploy-pages@v4
