@@ -66,13 +66,15 @@ export function traceShot(origin, direction, solids, bots, max = RULES.bulletRan
 const occupied = (x, z, feet, height, r, b) =>
   feet+height > b.min[1]+0.001 && feet < b.max[1]-0.001 && x+r > b.min[0] && x-r < b.max[0] && z+r > b.min[2] && z-r < b.max[2];
 // Substeps prevent tunnelling; axis separation allows sliding along cover.
-export function moveBody(body, dx, dz, solids, r = 0.3, height = 1.75) {
+export function moveBody(body, dx, dz, solids, r = 0.3, height = 1.75, onContact = null) {
   const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.15));
+  // A contact handler can remove a breakable obstacle before this substep.
+  const blockedAt = (x, z) => solids.some(b => occupied(x, z, body.y, height, r, b) && !onContact?.(b));
   let blocked = false;
   for (let i = 0; i < steps; i++) {
     const x = body.x + dx/steps, z = body.z + dz/steps;
-    if (!solids.some(b => occupied(x, body.z, body.y, height, r, b))) body.x = x; else blocked = true;
-    if (!solids.some(b => occupied(body.x, z, body.y, height, r, b))) body.z = z; else blocked = true;
+    if (!blockedAt(x, body.z)) body.x = x; else blocked = true;
+    if (!blockedAt(body.x, z)) body.z = z; else blocked = true;
   }
   return blocked;
 }
@@ -181,8 +183,8 @@ export class Game {
     }
     if (!first || total < target.hp) return;
     const scale = clamp(first.distance / (RULES.playerBullet * RULES.killcamFlight), 0.012, 0.2);
-    this.killcam = {bullet:first.bullet, target, phase:'flight', timer:0, scale, corpse:null, distance:first.distance};
-    first.bullet.killcam = true; this.weapon.queued = 0;
+    this.killcam = {bullet:first.bullet, record:first.bullet.record, target, phase:'flight', timer:0, scale, corpse:null, distance:first.distance};
+    this.weapon.queued = 0;
     this.emit('killcamStart', {distance:first.distance});
   }
   endKillcam() {
@@ -215,7 +217,11 @@ export class Game {
     let dz = Number.isFinite(input.moveZ) ? clamp(input.moveZ, -1, 1) : Number(!!input.forward) - Number(!!input.back);
     const length = Math.max(1, Math.hypot(dx, dz)); dx /= length; dz /= length;
     this.moving = false;
-    if (p.diving) moveBody(p, p.diveX*RULES.diveSpeed*pdt, p.diveZ*RULES.diveSpeed*pdt, this.blockers, 0.3, 0.8);
+    if (p.diving) moveBody(p, p.diveX*RULES.diveSpeed*pdt, p.diveZ*RULES.diveSpeed*pdt, this.blockers, 0.3, 0.8, box => {
+      if (box.intact === undefined) return false;
+      this.shatter(box, [p.x, p.y+0.4, p.z], [p.diveX, 0, p.diveZ]);
+      return true;
+    });
     else if (p.prone > 0) {
       p.prone = Math.max(0, p.prone - pdt);
       if (p.prone === 0) { p.diveCooldown = RULES.diveCooldown; this.emit('getUp'); }
@@ -301,7 +307,9 @@ export class Game {
     if (this.corpses.length > RULES.maxCorpses) this.corpses.shift();
     this.emit('kill', {points, head, slow, air, long, combo:this.combo, point:t.point, position:[bot.x, bot.y, bot.z], type:bot.type, dir:bullet.dir});
     const kc = this.killcam;
-    if (kc && kc.bullet === bullet) { kc.phase = 'impact'; kc.timer = 0; kc.scale = 0.1; kc.corpse = corpse; this.emit('killcamImpact'); }
+    if (kc && kc.phase === 'flight' && kc.target === bot && kc.record === bullet.record) {
+      kc.bullet = bullet; kc.phase = 'impact'; kc.timer = 0; kc.scale = 0.1; kc.corpse = corpse; this.emit('killcamImpact');
+    }
   }
 
   // ---- Bullets -----------------------------------------------------------
@@ -341,9 +349,16 @@ export class Game {
     for (const b of this.bullets) {
       const alive = this.moveBullet(b, wdt);
       if (alive) this.bullets[write++] = b;
-      else if (b.killcam && this.killcam?.bullet === b && this.killcam.phase === 'flight') this.endKillcam();
     }
     this.bullets.length = write;
+    // A shotgun's first impact may only wound. Keep following the same blast
+    // until one of its pellets kills the target or all of them have stopped.
+    const kc = this.killcam;
+    if (kc?.phase === 'flight' && !this.bullets.includes(kc.bullet)) {
+      const next = this.bullets.find(b => b.record === kc.record);
+      if (next) kc.bullet = next;
+      else this.endKillcam();
+    }
   }
 
   // ---- Enemies -----------------------------------------------------------

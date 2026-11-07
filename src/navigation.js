@@ -15,6 +15,19 @@ export class Navigation {
       const [x, z] = this.point(i);
       this.open[i] = !solids.some(b => b.min[1] < 2.2 && b.max[1] > 0.01 && x+0.5 > b.min[0] && x-0.5 < b.max[0] && z+0.5 > b.min[2] && z-0.5 < b.max[2]);
     }
+    // Precompute safe cardinal edges once. The swept rectangle includes body
+    // clearance, so thin cover between otherwise clear centres blocks a link.
+    this.routes = Array.from({length:size}, (_, i) => {
+      if (!this.open[i]) return [];
+      const [x, z] = this.point(i);
+      return this.adjacent(i).filter(n => {
+        if (n < 0 || n >= size || !this.open[n]) return false;
+        const [nx, nz] = this.point(n);
+        return !solids.some(b => b.min[1] < 2.2 && b.max[1] > 0.01 &&
+          Math.max(x, nx)+0.5 > b.min[0] && Math.min(x, nx)-0.5 < b.max[0] &&
+          Math.max(z, nz)+0.5 > b.min[2] && Math.min(z, nz)-0.5 < b.max[2]);
+      });
+    });
   }
   point(i) { return [this.minX + (i % this.width) * this.cellSize, this.minZ + Math.floor(i / this.width) * this.cellSize]; }
   cell(x, z) {
@@ -22,7 +35,8 @@ export class Navigation {
     const cz = Math.max(0, Math.min(this.height-1, Math.round((z - this.minZ) / this.cellSize)));
     return cz * this.width + cx;
   }
-  neighbors(i) { const x = i % this.width; return [x ? i-1 : -1, x < this.width-1 ? i+1 : -1, i-this.width, i+this.width]; }
+  adjacent(i) { const x = i % this.width; return [x ? i-1 : -1, x < this.width-1 ? i+1 : -1, i-this.width, i+this.width]; }
+  neighbors(i) { return this.routes[i]; }
   toward(x, z, px, pz) {
     let target = this.cell(px, pz);
     if (!this.open[target]) {

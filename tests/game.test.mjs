@@ -12,8 +12,8 @@ const near = (a, b, eps = 1e-5) => assert.ok(Math.abs(a - b) < eps, `${a} differ
 const TICK = 1/120;
 function advance(game, seconds, input = {}) { for (let i = 0; i < Math.round(seconds*120); i++) game.step(TICK, input); }
 // A bare arena with one stationary target in front of the player.
-function range(mode = 'practice', bot = {}) {
-  const game = new Game(mode, 1);
+function range(mode = 'practice', bot = {}, seed = 1) {
+  const game = new Game(mode, seed);
   game.world.solids = []; game.glass = []; game.refreshBlockers();
   game.breakTimer = 999; game.player.invulnerable = 0;
   Object.assign(game.player, {x:0, z:0, yaw:0, pitch:0});
@@ -169,6 +169,33 @@ test('glass shatters when shot or barged through but never stops a round', () =>
   assert.equal(second.game.glass[0].intact, false);
 });
 
+test('diving shatters arena glass on body contact while walking still stops', () => {
+  for (const x of [0, 2.85]) {
+    const game = new Game('practice'); game.breakTimer = 999;
+    Object.assign(game.player, {x, z:12});
+    const pane = game.glass.find(g => g.z === 11);
+    game.step(TICK, {dive:true, forward:true}); advance(game, 1);
+    assert.equal(pane.intact, false, `dive at x=${x} breaks the pane, including radius contact`);
+    assert.ok(game.player.z < 11, 'the dive continues through the partition');
+    assert.equal(game.stats.glass, 1);
+    assert.equal(game.drainEvents().filter(e => e.type === 'glass').length, 1);
+    assert.ok(!game.blockers.includes(pane));
+  }
+  const walking = new Game('practice'); walking.breakTimer = 999;
+  Object.assign(walking.player, {x:0, z:12}); advance(walking, 0.5, {forward:true});
+  assert.ok(walking.player.z > 11.3);
+  assert.equal(walking.glass.find(g => g.z === 11).intact, true);
+});
+
+test('a diving player cannot break glass through solid cover', () => {
+  const {game, target} = range(); freeze(target);
+  game.world.solids = [boxAt(0, 1.5, -1, 5, 3, 0.5)];
+  game.glass = [{id:0, ...boxAt(0, 1.45, -2, 5, 2.9, 0.08), intact:true}]; game.refreshBlockers();
+  game.step(TICK, {dive:true, forward:true}); advance(game, 1);
+  assert.ok(game.player.z > -0.5);
+  assert.equal(game.glass[0].intact, true);
+});
+
 test('weapons: switching, shotgun pellets, automatic carbine and reloading', () => {
   const {game, target} = range(); freeze(target);
   assert.ok(game.switchWeapon(1)); advance(game, 0.4);
@@ -200,6 +227,36 @@ test('the final kill of a wave triggers the bullet camera, then play resumes', (
   // And players can switch it off.
   const off = range('run'); off.game.options.killcam = false; off.game.wave = 1; off.game.queue = []; off.game.breakTimer = 0;
   off.game.player.pitch = Math.atan2(1.93 - 1.68, 15); off.game.requestShot(); assert.equal(off.game.killcam, null);
+});
+
+test('a shotgun final kill keeps the camera through nonlethal pellets and the impact orbit', () => {
+  const {game, target} = range('run', {z:-5}, 2); freeze(target);
+  game.wave = 1; game.breakTimer = 0; game.weapon.index = 1;
+  game.player.pitch = Math.atan2(1.2 - game.player.eye, 5);
+  game.requestShot();
+  assert.equal(game.killcam?.phase, 'flight');
+  advance(game, RULES.killcamFlight + 0.4);
+  assert.equal(target.alive, false);
+  assert.equal(game.killcam?.phase, 'impact');
+  assert.equal(game.killcam.corpse, game.corpses[0]);
+  const events = game.drainEvents();
+  assert.equal(events.find(e => e.type === 'hit').killed, false, 'several pellets are needed');
+  assert.equal(events.filter(e => e.type === 'killcamImpact').length, 1);
+  assert.ok(!events.some(e => e.type === 'killcamEnd' || e.type === 'waveClear'));
+  advance(game, RULES.killcamHold + 0.2);
+  assert.equal(game.killcam, null);
+  assert.deepEqual(game.drainEvents().filter(e => ['killcamEnd', 'waveClear'].includes(e.type)).map(e => e.type), ['killcamEnd', 'waveClear']);
+});
+
+test('a predicted shotgun kill that misses releases the camera when the blast expires', () => {
+  const {game, target} = range('run', {z:-5}); freeze(target);
+  game.weapon.index = 1; game.player.pitch = Math.atan2(1.2 - game.player.eye, 5);
+  game.requestShot(); assert.ok(game.killcam);
+  target.x = 20; // Move out of the blast after prediction.
+  for (const bullet of game.bullets) bullet.max = 6;
+  advance(game, 3);
+  assert.equal(game.killcam, null); assert.equal(target.alive, true);
+  assert.ok(!game.drainEvents().some(e => e.type === 'killcamImpact'));
 });
 
 test('waves spawn away from the player, escalate and award bonuses', () => {
@@ -256,6 +313,31 @@ test('the arena, navigation, music and controller contracts hold', () => {
   const b = buttons(); b[6].value = 1; b[7].value = 1; b[1].value = 1;
   const out = pad.sample(make(b)); assert.ok(out.focus && out.fire && out.fireHeld && out.dive);
   assert.equal(pad.sample(make(b)).fire, false, 'trigger fires once per pull');
+});
+
+test('navigation routes around thin cover between open cells with body clearance', () => {
+  for (const cover of [boxAt(0, 1, 1, 1, 2, 0.1), boxAt(0.7, 1, 1, 0.6, 2, 0.1)]) {
+    const nav = new Navigation([cover], {minX:-5, maxX:5, minZ:-1, maxZ:7});
+    const a = nav.cell(0, 0), b = nav.cell(0, 2);
+    assert.ok(nav.open[a] && nav.open[b], 'both centres are clear');
+    assert.ok(!nav.neighbors(a).includes(b) && !nav.neighbors(b).includes(a));
+    assert.notDeepEqual(nav.toward(0, 0, 0, 4), [0, 2], 'steering must also reject the blocked shortcut');
+    let p = [0, 0];
+    for (let i = 0; i < 12; i++) p = nav.toward(...p, 0, 4);
+    assert.deepEqual(p, [0, 4], 'an alternate route reaches the goal');
+  }
+  const world = makeWorld(), nav = new Navigation(world.solids, world.bounds);
+  const a = nav.cell(-3, 27), b = nav.cell(-3, 25);
+  assert.ok(nav.open[a] && nav.open[b]);
+  assert.ok(!nav.neighbors(a).includes(b) && !nav.neighbors(b).includes(a));
+  const game = new Game('practice'); game.breakTimer = 999;
+  const bot = game.spawnBot('grunt'); Object.assign(bot, {x:0, z:29});
+  let reachedSight = false;
+  for (let i = 0; i < 90*120; i++) {
+    game.step(TICK);
+    if (game.botSight(bot).visible) { reachedSight = true; break; }
+  }
+  assert.ok(reachedSight, 'the grunt escapes the barrier and gains sight of the player');
 });
 
 test('skin assets: every skin is complete, stored choices are validated and patterns draw decals', async () => {
