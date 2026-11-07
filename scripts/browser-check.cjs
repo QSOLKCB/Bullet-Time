@@ -76,17 +76,30 @@ const fail = message => { console.error('FAIL:', message); process.exitCode = 1;
   await page.keyboard.up('KeyD');
   console.log('dive', s3);
   if (!s3.diving || s3.slow < 0.5) fail('shootdodge did not dive in slow motion');
-  // Glass: shoot the nearest pane.
-  await page.waitForTimeout(1500);
-  await page.evaluate(() => {
+  // Glass: software rendering can advance the simulation much more slowly
+  // than wall time. Finish the dive and weapon switch before taking the shot.
+  await page.waitForFunction(() => {
+    const g = __bulletTime.game, p = g.player;
+    return !g.busy && p.grounded && !p.diving && p.prone === 0;
+  }, null, {timeout:15000});
+  const glassTarget = await page.evaluate(() => {
     const g = __bulletTime.game, p = g.player, pane = g.glass.find(q => q.intact);
-    g.player.invulnerable = 99; Object.assign(p, {x:pane.x + (pane.w > 1 ? 0 : 4), z:pane.z + (pane.w > 1 ? 4 : 0)});
+    g.player.invulnerable = 99;
+    Object.assign(p, {x:pane.x + (pane.w > 1 ? 0 : 4), z:pane.z + (pane.w > 1 ? 4 : 0), y:0, vy:0, crouch:false, eye:1.68});
     const dx = pane.x - p.x, dz = pane.z - p.z; p.yaw = Math.atan2(dx, -dz); p.pitch = Math.atan2(1.2 - p.eye, Math.hypot(dx, dz));
-    g.toggleFocus(); g.switchWeapon(1);
+    g.focus = 100; g.setFocus(true); g.switchWeapon(1);
+    return pane.id;
   });
-  await page.waitForTimeout(700);
-  await page.evaluate(() => __bulletTime.game.requestShot());
-  await page.waitForTimeout(500);
+  await page.waitForFunction(() => {
+    const g = __bulletTime.game, w = g.weapon;
+    return !g.busy && w.index === 1 && w.switching === 0 && w.cooldown === 0 && w.reload === 0;
+  }, null, {timeout:15000});
+  const glassShot = await page.evaluate(() => !!__bulletTime.game.requestShot()?.length);
+  if (!glassShot) fail('glass test could not fire the shotgun');
+  await page.waitForFunction(id => {
+    const t = __bulletTime;
+    return t.game.glass.find(q => q.id === id)?.intact === false && t.effects.shards.length > 0;
+  }, glassTarget, {timeout:15000}).catch(() => fail('target glass did not shatter and produce shards'));
   const glass = await page.evaluate(() => ({broken:__bulletTime.game.stats.glass, shards:__bulletTime.effects.shards.length}));
   console.log('glass', glass);
   if (!glass.broken || !glass.shards) fail('glass did not shatter');
