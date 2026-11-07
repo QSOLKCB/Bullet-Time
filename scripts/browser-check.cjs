@@ -139,8 +139,7 @@ const fail = message => { console.error('FAIL:', message); process.exitCode = 1;
   await shot('08-pause');
   // Death → results.
   await page.evaluate(() => { const t = __bulletTime; t.beginPlaying(); t.game.player.invulnerable = 0; t.game.damage(500, [0, 1, 0]); });
-  await page.waitForTimeout(2600);
-  if (!(await page.locator('#results').isVisible())) fail('death did not reach the results screen');
+  await page.locator('#results').waitFor({state:'visible', timeout:8000}).catch(() => fail('death did not reach the results screen'));
   await shot('09-results');
   if (errors.length) fail('console errors:\n' + errors.join('\n'));
   await browser.close(); server.close();
