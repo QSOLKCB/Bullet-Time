@@ -1,9 +1,9 @@
 // Increment this revision whenever any cached runtime file changes.
-const REVISION = 'v1.1.0-3';
+const REVISION = 'v1.2.0-1';
 // Scope-specific prefix: never touches caches of other games on the same origin.
 const PREFIX = `bullet-time:${self.registration.scope}:`;
 const CACHE = PREFIX + REVISION;
-const FILES = ['./','./index.html','./style.css','./icon.svg','./manifest.webmanifest','./src/app.js','./src/math.js','./src/clock.js','./src/world.js','./src/game.js','./src/renderer.js','./src/audio.js','./src/music.js','./src/controller.js','./src/navigation.js','./src/skins.js'];
+const FILES = ['./','./index.html','./style.css','./icon.svg','./manifest.webmanifest','./src/app.js','./src/math.js','./src/clock.js','./src/lead.js','./src/frame-gate.js','./src/world.js','./src/game.js','./src/renderer.js','./src/audio.js','./src/music.js','./src/controller.js','./src/navigation.js','./src/skins.js'];
 const SKIN_FILES = ['./assets/skins/weapon-factory.svg','./assets/skins/weapon-ivory.svg','./assets/skins/weapon-ember.svg','./assets/skins/weapon-chrome.svg','./assets/skins/weapon-jade.svg','./assets/skins/weapon-tiger.svg','./assets/skins/enemy-syndicate.svg','./assets/skins/enemy-chrome.svg','./assets/skins/enemy-nightshift.svg','./assets/skins/enemy-masquerade.svg'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES.concat(SKIN_FILES)))); });
 self.addEventListener('activate', event => {

@@ -9,7 +9,10 @@ It reuses and adapts code from these QSOLKCB projects (Apache-2.0):
     navigation, synthesized Web Audio structure, Xbox standard-mapping input,
     app lifecycle (pause, pointer lock, focus loss), offline service worker.
   - VANILLAJS: fixed-step accumulator (modules/time FixedClock) and the
-    swept, constant-velocity projectile model (modules/projectiles).
+    swept, constant-velocity projectile model (modules/projectiles); from
+    v1.2.0, drift-repaying FixedClock timestamp snapping, the constant-velocity
+    lead solver (modules/lead-solver) and the retained-frame gate
+    (modules/frame-gate).
   - AFTER-ZERO: the idea of a separate world clock for slow motion with a
     draining/refilling meter.
   - OPT: optimisation patterns applied - invariant-driven reuse (static level

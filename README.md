@@ -43,7 +43,7 @@ Choose **The Gauntlet** (endless waves, one life, score attack) or **The Range**
 | **Breacher 12** | Pump shotgun, 9 pellets, huge knockback. |
 | **Vector carbine** | Fully automatic, 32 rounds. Bloom grows with sustained fire. |
 
-Enemies are voxel androids: **grunts** (3-round bursts), **runners** (fast flankers who spray 5) and **heavies** (armoured, 6-pellet blasts). Each one shows a red glow at the muzzle and visor before it fires. They route around cover with a shared flow field and smash through any glass in their way.
+Enemies are voxel androids: **grunts** (3-round bursts), **runners** (fast flankers who spray 5) and **heavies** (armoured, 6-pellet blasts). Each one shows a red glow at the muzzle and visor before it fires. Grunts and runners lead a walking target, aiming part of the way toward where you'll be. They read your normal pace, so moving in bullet time outruns their aim, nobody can predict a shootdodge, and heavies just fire where you are. They route around cover with a shared flow field and smash through any glass in their way.
 
 ## Skins
 
@@ -78,7 +78,9 @@ npm run build    # package dist/
 | `src/renderer.js` | WebGL: lit, additive-glow and point passes, figures and corpses, bullets, ripples, afterimages, glass, viewmodels, cameras |
 | `src/skins.js` | Weapon and enemy skin data and pattern decals |
 | `src/world.js` | Terminal Nine, an original transit concourse |
-| `src/clock.js` | Fixed real-time tick accumulator (from VANILLAJS) |
+| `src/clock.js` | Fixed real-time tick accumulator with drift-repaying vsync snapping (from VANILLAJS 1.2) |
+| `src/lead.js` | Constant-velocity intercept solver behind enemy aim (from VANILLAJS 1.2) |
+| `src/frame-gate.js` | Skips redrawing the frozen frame on the pause and results screens (from VANILLAJS 1.2) |
 | `src/audio.js`, `src/music.js` | Synthesized effects, slow-motion filter, generative score |
 | `src/app.js` | Input, lifecycle, effects, overlay, HUD, settings and skins UI |
 
