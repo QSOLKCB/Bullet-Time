@@ -208,6 +208,40 @@ test('weapons: switching, shotgun pellets, automatic carbine and reloading', () 
   assert.equal(game.ammo[2], WEAPONS[2].mag);
 });
 
+test('new guns: the revolver one-shots a torso, the vipers alternate hands on full auto', () => {
+  const index = id => WEAPONS.findIndex(w => w.id === id);
+  let {game, target} = range(); freeze(target);
+  assert.ok(game.switchWeapon(index('revolver'))); advance(game, 0.4);
+  game.requestShot(); advance(game, 0.2);
+  assert.equal(target.alive, false, 'a .50 body shot drops a grunt');
+  ({game, target} = range()); freeze(target); target.hp = target.maxHp = 1e6;
+  const v = index('vipers'); game.switchWeapon(v); advance(game, 0.4);
+  const hands = []; game.drainEvents();
+  advance(game, 0.3, {fire:true});
+  for (const e of game.drainEvents()) if (e.type === 'shot') hands.push(e.hand);
+  assert.ok(hands.length >= 5, 'holding fire keeps the vipers firing');
+  assert.ok(hands.every((h, i) => i === 0 || h === -hands[i - 1]), 'shots alternate between hands');
+  assert.equal(game.ammo[v], WEAPONS[v].mag - hands.length);
+});
+
+test('the marksman rifle round is faster and pierces bodies, but never cover', () => {
+  const r = WEAPONS.findIndex(w => w.id === 'rifle');
+  const {game, target} = range(); freeze(target);
+  const behind = {...target, id:100, z:-22, hp:100, alive:true}; freeze(behind); game.bots.push(behind);
+  game.switchWeapon(r); advance(game, 0.4);
+  const [bullet] = game.requestShot();
+  assert.ok(bullet.speed > RULES.playerBullet);
+  advance(game, 0.3);
+  assert.equal(target.alive, false); assert.equal(behind.alive, false, 'one round, two bodies');
+  assert.equal(game.stats.kills, 2); assert.equal(game.stats.hits, 1, 'accuracy counts the trigger pull once');
+  // A wall between the two stops the round after the first body.
+  const blocked = range(); freeze(blocked.target);
+  const hidden = {...blocked.target, id:101, z:-24, hp:100, alive:true}; freeze(hidden); blocked.game.bots.push(hidden);
+  blocked.game.world.solids = [boxAt(0, 1, -19, 6, 4, 0.5)];
+  blocked.game.switchWeapon(r); advance(blocked.game, 0.4); blocked.game.requestShot(); advance(blocked.game, 0.3);
+  assert.equal(blocked.target.alive, false); assert.equal(hidden.alive, true, 'cover stops a piercing round');
+});
+
 test('the final kill of a wave triggers the bullet camera, then play resumes', () => {
   const {game, target} = range('run'); freeze(target);
   game.mode = 'run'; game.wave = 1; game.queue = []; game.breakTimer = 0;
@@ -227,6 +261,32 @@ test('the final kill of a wave triggers the bullet camera, then play resumes', (
   // And players can switch it off.
   const off = range('run'); off.game.options.killcam = false; off.game.wave = 1; off.game.queue = []; off.game.breakTimer = 0;
   off.game.player.pitch = Math.atan2(1.93 - 1.68, 15); off.game.requestShot(); assert.equal(off.game.killcam, null);
+});
+
+test('a piercing round that clears the wave gets the final-bullet camera on the last body', () => {
+  const r = WEAPONS.findIndex(w => w.id === 'rifle');
+  const setup = () => {
+    const {game, target} = range('run'); freeze(target);
+    const behind = {...target, id:100, z:-22, hp:100, alive:true}; freeze(behind); game.bots.push(behind);
+    game.wave = 1; game.queue = []; game.breakTimer = 0; game.weapon.index = r;
+    return {game, target, behind};
+  };
+  const {game, target, behind} = setup();
+  game.requestShot();
+  assert.equal(game.killcam?.phase, 'flight', 'one round that kills both remaining enemies gets the camera');
+  assert.equal(game.killcam.target, behind, 'the camera rides to the last body in line');
+  advance(game, RULES.killcamFlight + 0.6);
+  assert.equal(target.alive, false); assert.equal(behind.alive, false);
+  assert.equal(game.killcam?.phase, 'impact');
+  advance(game, RULES.killcamHold + 0.2);
+  const types = game.drainEvents().map(e => e.type);
+  assert.ok(types.includes('killcamStart') && types.includes('killcamImpact') && types.includes('killcamEnd') && types.includes('waveClear'));
+  // If the round can't finish everyone, there's no camera.
+  const tough = setup(); tough.behind.hp = 500; tough.game.requestShot(); assert.equal(tough.game.killcam, null);
+  // Nor when cover shields the last enemy.
+  const covered = setup(); covered.game.world.solids = [boxAt(0, 1, -19, 6, 4, 0.5)]; covered.game.requestShot(); assert.equal(covered.game.killcam, null);
+  // And a non-piercing gun still needs a single last enemy.
+  const pistol = setup(); pistol.game.weapon.index = 0; pistol.game.player.pitch = Math.atan2(1.93 - 1.68, 15); pistol.game.requestShot(); assert.equal(pistol.game.killcam, null);
 });
 
 test('a shotgun final kill keeps the camera through nonlethal pellets and the impact orbit', () => {

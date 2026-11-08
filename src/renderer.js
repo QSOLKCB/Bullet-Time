@@ -343,7 +343,53 @@ export class Renderer {
       return part;
     };
     const flash = (part, z, k) => { if (k > 0.6 && !reduced) { part(0, 0.012, z, 0.07*k, 0.07*k, 0.12, [1.6,1.25,0.6]); part(0, 0.012, z - 0.02, 0.14*k, 0.02, 0.02, [1.6,1.1,0.5]); } };
-    if (def.id === 'duals') {
+    if (def.id === 'vipers') {
+      for (const side of [-1, 1]) {
+        const r = side > 0 ? w.recoilR : w.recoilL, buzz = reduced ? 0 : Math.sin(game.realTime*70 + side)*r*0.002;
+        const part = gun(side*0.16 + dx + buzz, -0.155 + dy + r*0.012, -0.58 + r*0.03, side*0.07, r*0.1);
+        part.panel(0, 0.02, -0.01, 0.038, 0.04, 0.2, metal);    // upper receiver
+        part(0, 0.022, -0.13, 0.016, 0.016, 0.06, edge);       // stub barrel
+        part(0, -0.01, 0, 0.032, 0.03, 0.17, edge);            // lower
+        part(0, -0.09, 0.045, 0.024, 0.14, 0.03, edge);        // long magazine through the grip
+        part.panel(0, -0.045, 0.06, 0.03, 0.06, 0.046, grip);  // grip
+        part(0, 0.004, 0.11, 0.012, 0.02, 0.05, metal);        // folded brace
+        part(0, 0.045, -0.09, 0.006, 0.01, 0.008, sight);      // front sight
+        part(0, -0.06, 0.075, 0.05, 0.05, 0.06, skin);         // hand
+        part(side*0.012, -0.1, 0.2, 0.075, 0.08, 0.22, sleeve); // forearm
+        flash(part, -0.17, r);
+      }
+    } else if (def.id === 'revolver') {
+      const r = w.recoil, spin = w.cooldown > 0 ? 1 - w.cooldown/def.cycle : 1;
+      const part = gun(0.17 + dx, -0.14 + dy + r*0.04, -0.68 + r*0.08, 0.11, r*0.45);
+      part.panel(0, 0.022, -0.1, 0.03, 0.03, 0.2, edge);      // barrel
+      part(0, 0, -0.1, 0.022, 0.022, 0.19, metal);            // underlug
+      part.panel(0, 0.004, 0.035, 0.036, 0.062, 0.12, metal); // frame
+      // The cylinder indexes to the next chamber as the hammer resets.
+      part(0, 0.006, 0.01, 0.054, 0.054, 0.066, metal);
+      for (let i = 0; i < 3; i++) { const a = (i/3 + spin/6)*Math.PI*2; part(Math.cos(a)*0.028, 0.006 + Math.sin(a)*0.028, 0.01, 0.008, 0.008, 0.068, edge); }
+      part(0, 0.043 - r*0.012, 0.085, 0.01, 0.022, 0.02, edge); // hammer
+      part.panel(0, -0.058, 0.1, 0.034, 0.09, 0.046, grip);     // grip
+      part(0, 0.044, -0.19, 0.006, 0.012, 0.008, sight);        // front sight
+      part(0, -0.06, 0.11, 0.055, 0.055, 0.065, skin); part(0.012, -0.1, 0.25, 0.075, 0.08, 0.22, sleeve);
+      part(-0.035, -0.075, 0.1, 0.045, 0.05, 0.055, skin); part(-0.1, -0.13, 0.27, 0.075, 0.075, 0.22, sleeve); // support hand
+      flash(part, -0.22, r);
+    } else if (def.id === 'rifle') {
+      const r = w.recoil, bolt = w.cooldown > 0 ? Math.sin(clamp(1 - w.cooldown/def.cycle, 0, 1)*Math.PI)*0.07 : 0;
+      const part = gun(0.14 + dx, -0.165 + dy + r*0.03, -0.62 + r*0.1, 0.045, r*0.32);
+      part.panel(0, 0, 0.05, 0.046, 0.06, 0.3, metal);         // receiver
+      part(0, 0.012, -0.36, 0.02, 0.02, 0.5, edge);            // barrel
+      part(0, 0.012, -0.62, 0.032, 0.032, 0.05, metal);        // muzzle brake
+      part.panel(0, -0.004, -0.2, 0.05, 0.056, 0.26, grip);    // handguard
+      part(0, 0.07, 0.03, 0.034, 0.034, 0.24, metal);          // scope tube
+      part(0, 0.07, -0.1, 0.046, 0.046, 0.045, edge); part(0, 0.07, 0.16, 0.042, 0.042, 0.04, edge); // scope bells
+      part(0, 0.043, -0.03, 0.02, 0.022, 0.02, edge); part(0, 0.043, 0.09, 0.02, 0.022, 0.02, edge); // mounts
+      part(0, -0.07, 0.01, 0.034, 0.07, 0.07, edge);           // box magazine
+      part.panel(0, -0.022, 0.33, 0.045, 0.092, 0.24, grip);   // stock
+      part(0.042, 0.022, 0.12 + bolt, 0.034, 0.012, 0.012, edge); // bolt handle
+      part(-0.01, -0.052, -0.22, 0.055, 0.05, 0.07, skin); part(-0.05, -0.11, -0.04, 0.075, 0.075, 0.26, sleeve);
+      part(0.01, -0.062, 0.18, 0.05, 0.05, 0.06, skin); part(0.03, -0.12, 0.35, 0.075, 0.08, 0.22, sleeve);
+      flash(part, -0.67, r);
+    } else if (def.id === 'duals') {
       for (const side of [-1, 1]) {
         const r = side > 0 ? w.recoilR : w.recoilL, idle = side < 0 ? Math.sin(game.realTime*1.3)*0.003 : 0;
         const part = gun(side*0.155 + dx, -0.15 + dy + r*0.02 + idle, -0.6 + r*0.05, side*0.07, r*0.22);

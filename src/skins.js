@@ -34,13 +34,14 @@ export const ENEMY_SKINS = Object.freeze({
     heavy:look([0.34,0.08,0.1],[0.1,0.03,0.04],[0.92,0.9,0.86],[0.08,0.06,0.08],[0.9,0.78,0.4],[0.08,0.04,0.1])}}
 });
 export const ENEMY_SKIN_IDS = Object.freeze(Object.keys(ENEMY_SKINS));
-export const DEFAULT_SKINS = Object.freeze({duals:'factory', shotgun:'factory', carbine:'factory', enemies:'syndicate'});
+export const WEAPON_SKIN_KEYS = Object.freeze(['duals','shotgun','carbine','revolver','vipers','rifle']);
+export const DEFAULT_SKINS = Object.freeze({...Object.fromEntries(WEAPON_SKIN_KEYS.map(key => [key, 'factory'])), enemies:'syndicate'});
 
 // Validates stored choices, falling back to defaults for anything unknown.
 export function normalizeSkins(value) {
   const out = {...DEFAULT_SKINS};
   if (!value || typeof value !== 'object') return out;
-  for (const key of ['duals','shotgun','carbine']) if (Object.hasOwn(WEAPON_SKINS, value[key])) out[key] = value[key];
+  for (const key of WEAPON_SKIN_KEYS) if (Object.hasOwn(WEAPON_SKINS, value[key])) out[key] = value[key];
   if (Object.hasOwn(ENEMY_SKINS, value.enemies)) out.enemies = value.enemies;
   return out;
 }

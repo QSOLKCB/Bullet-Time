@@ -54,7 +54,7 @@ kbd{font:9px monospace;padding:5px 7px;border:1px solid #ffffff35;border-bottom-
 .weapon-info{text-align:right}.weapon-info small{font:10px monospace;letter-spacing:1.4px}
 .weapon-info b{font:52px monospace;line-height:1.2;letter-spacing:-3px}.weapon-info div>span{font:18px monospace;color:#d7cbb9}
 .weapon-info>span{font:9px monospace;letter-spacing:2px;color:var(--amber)}
-.slots{display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px}.slot{font:8px monospace;letter-spacing:1px;padding:4px 6px;border:1px solid #ffffff25;color:#cbbfae}
+.slots{display:grid;grid-template-columns:repeat(3,auto);gap:6px;justify-content:end;margin-bottom:10px}.slot{font:8px monospace;letter-spacing:1px;padding:4px 6px;border:1px solid #ffffff25;color:#cbbfae}
 .slot.active{border-color:var(--amber);color:var(--amber);background:#f2a64a14}
 .announcement{position:absolute;top:22%;left:0;right:0;text-align:center;font-size:27px;letter-spacing:3px;font-weight:900;font-style:italic;color:var(--amber)}
 .announcement small{display:block;font:10px monospace;font-style:normal;color:white;margin-top:9px;letter-spacing:1px;font-weight:normal}
