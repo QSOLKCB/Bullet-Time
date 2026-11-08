@@ -18,12 +18,12 @@ Choose **The Gauntlet** (endless waves, one life, score attack) or **The Range**
 | Action | Keyboard + mouse | Xbox |
 | --- | --- | --- |
 | Move / look | WASD / mouse | Left / right stick |
-| Fire | Left click (hold for the carbine) | RT |
+| Fire | Left click (hold for the carbine and vipers) | RT |
 | **Bullet time** | **Q or right click** (toggle, or hold in Settings) | LT |
 | **Shootdodge** | **Shift** (or F / middle click) while moving | B |
 | Jump / crouch | Space / C or Ctrl | A / RS click |
 | Reload | R | X |
-| Weapons | 1 2 3 or mouse wheel | Y, LB, RB |
+| Weapons | 1–6 or mouse wheel | Y, LB, RB |
 | Pause / mute | Esc or P / M | Menu |
 
 ## What bends
@@ -42,6 +42,9 @@ Choose **The Gauntlet** (endless waves, one life, score attack) or **The Range**
 | **Twin .45** | Akimbo pistols that alternate hands, 24 rounds. A head or torso pair drops a standard enemy. |
 | **Breacher 12** | Pump shotgun, 9 pellets, huge knockback. |
 | **Vector carbine** | Fully automatic, 32 rounds. Bloom grows with sustained fire. |
+| **Magistrate .50** | Heavy revolver, 6 rounds. One torso shot drops a grunt or runner; big muzzle climb and knockback. |
+| **Twin Vipers** | Akimbo machine pistols on full auto, 50 rounds alternating hands. Loose, fast and loud. |
+| **Longshot .308** | Bolt-action marksman rifle, 8 rounds at 240 m/s. Each round punches through up to two bodies to hit whoever is behind (never through cover). Moving ruins its accuracy. |
 
 Enemies are voxel androids: **grunts** (3-round bursts), **runners** (fast flankers who spray 5) and **heavies** (armoured, 6-pellet blasts). Each one shows a red glow at the muzzle and visor before it fires. Grunts and runners lead a walking target, aiming part of the way toward where you'll be. They read your normal pace, so moving in bullet time outruns their aim, nobody can predict a shootdodge, and heavies just fire where you are. They route around cover with a shared flow field and smash through any glass in their way.
 

@@ -66,7 +66,7 @@ function syncPrefs() {
   const xbox = prefs.profile === 'xbox';
   $('menu-note').textContent = xbox ? 'XBOX · A TO START · CLICK ONCE FOR AUDIO' : 'KEYBOARD + MOUSE · ESC TO PAUSE';
   $('guide-focus').textContent = xbox ? 'LT' : 'Q / RMB'; $('guide-dive').textContent = xbox ? 'B' : 'SHIFT';
-  $('guide-fire').textContent = xbox ? 'RT' : 'LMB'; $('guide-weapons').textContent = xbox ? 'Y / LB / RB' : '1 2 3';
+  $('guide-fire').textContent = xbox ? 'RT' : 'LMB'; $('guide-weapons').textContent = xbox ? 'Y / LB / RB' : '1–6';
   sound.setVolume(prefs.volume); sound.setMusicVolume(prefs.musicVolume); game.options.killcam = prefs.killcam;
   renderer?.setSkins(prefs.skins); syncSkinButtons(); frameGate.invalidate();
   storage.set('bullettime.settings', prefs);
@@ -156,7 +156,7 @@ window.addEventListener('blur', pauseGame);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
 
 // ---- Keyboard and mouse -----------------------------------------------------
-const HANDLED = ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight','ShiftLeft','ShiftRight','KeyC','KeyR','KeyM','KeyQ','KeyF','Digit1','Digit2','Digit3'];
+const HANDLED = ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight','ShiftLeft','ShiftRight','KeyC','KeyR','KeyM','KeyQ','KeyF','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'];
 function focusPress(down) {
   if (prefs.focusHold) game.setFocus(down);
   else if (down) game.toggleFocus();
@@ -272,14 +272,16 @@ function glassBurst(e) {
   }
   particles(e.point, 30, [0.6,0.8,0.9], {speed:4, up:2, size:0.03, spread:1.2, dir:[-e.dir[0],0,-e.dir[2]]});
 }
+// Screen shake per trigger pull; anything unlisted gets a light kick.
+const SHAKE = {shotgun:1, revolver:0.8, rifle:0.9, vipers:0.2};
 function consumeEvents() {
   const now = performance.now()/1000;
   for (const e of game.drainEvents()) {
     switch (e.type) {
       case 'shot': {
-        sound.play('shot', e); effects.shake = Math.max(effects.shake, e.weapon === 'shotgun' ? 1 : 0.35);
+        sound.play('shot', e); effects.shake = Math.max(effects.shake, SHAKE[e.weapon] ?? 0.35);
         const p = game.player, cs = Math.cos(p.yaw), sn = Math.sin(p.yaw), f = [sn, 0, -cs], r = [cs, 0, sn];
-        if (effects.casings.length < 40 && e.weapon !== 'shotgun') {
+        if (effects.casings.length < 40 && e.weapon !== 'shotgun' && e.weapon !== 'revolver') { // A revolver keeps its brass.
           const o = e.origin, h = e.hand || 1;
           effects.casings.push({x:o[0] + r[0]*0.3*h + f[0]*0.6, y:o[1] - 0.14, z:o[2] + r[2]*0.3*h + f[2]*0.6,
             vx:r[0]*h*2.6 + f[0]*0.4 + (fx()-0.5)*0.6, vy:1.6 + fx(), vz:r[2]*h*2.6 + f[2]*0.4 + (fx()-0.5)*0.6, yaw:fx()*6, tilt:0, spinY:8 + fx()*8, spinT:12 + fx()*10, life:2.5});
@@ -388,7 +390,7 @@ function updateHUD() {
   $('status-text').textContent = p.invulnerable > 0 && game.mode === 'run' ? 'SPAWN PROTECTION'
     : p.prone > 0 ? 'ON YOUR BACK · KEEP SHOOTING'
     : game.focusOn ? (xbox ? 'BULLET TIME · LT TO RELEASE' : 'BULLET TIME · Q / RMB TO RELEASE')
-    : xbox ? 'LT BULLET TIME · B SHOOTDODGE · Y WEAPON' : 'Q / RMB BULLET TIME · SHIFT DIVE · 1–3 GUNS';
+    : xbox ? 'LT BULLET TIME · B SHOOTDODGE · Y WEAPON' : 'Q / RMB BULLET TIME · SHIFT DIVE · 1–6 GUNS';
 }
 function finish() {
   clearInput(); const s = game.stats, newRecord = s.score > best;

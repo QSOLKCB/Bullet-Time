@@ -20,12 +20,21 @@ export const RULES = Object.freeze({
 });
 
 export const WEAPONS = Object.freeze([
-  {id:'duals', name:'TWIN .45', kind:'DUAL PISTOLS', mag:24, reload:1.6, cycle:0.11, auto:false, pellets:1, spread:0.006, moveSpread:0.012, bloom:0, impulse:3.4,
+  {id:'duals', name:'TWIN .45', kind:'DUAL PISTOLS', mag:24, reload:1.6, cycle:0.11, auto:false, akimbo:true, pellets:1, spread:0.006, moveSpread:0.012, bloom:0, impulse:3.4,
     damage:{head:130, body:52, legs:36, limb:32}},
   {id:'shotgun', name:'BREACHER 12', kind:'PUMP SHOTGUN', mag:7, reload:2.2, cycle:0.72, auto:false, pellets:9, spread:0.06, moveSpread:0.008, bloom:0, impulse:7.5,
     damage:{head:36, body:26, legs:18, limb:16}},
   {id:'carbine', name:'VECTOR CARBINE', kind:'AUTO CARBINE', mag:32, reload:1.9, cycle:0.085, auto:true, pellets:1, spread:0.005, moveSpread:0.016, bloom:0.0035, impulse:4,
-    damage:{head:100, body:34, legs:24, limb:20}}
+    damage:{head:100, body:34, legs:24, limb:20}},
+  // One heavy round per pull: a body shot drops a grunt or runner outright.
+  {id:'revolver', name:'MAGISTRATE .50', kind:'HEAVY REVOLVER', mag:6, reload:2.3, cycle:0.38, auto:false, pellets:1, spread:0.003, moveSpread:0.014, bloom:0, impulse:6.2,
+    damage:{head:200, body:100, legs:70, limb:60}},
+  // Akimbo machine pistols: hold the trigger, they alternate hands.
+  {id:'vipers', name:'TWIN VIPERS', kind:'AKIMBO SMGS', mag:50, reload:2.1, cycle:0.05, auto:true, akimbo:true, pellets:1, spread:0.013, moveSpread:0.01, bloom:0.0025, impulse:2.6,
+    damage:{head:60, body:20, legs:14, limb:12}},
+  // A faster round that punches through bodies (never cover) to hit whoever stands behind.
+  {id:'rifle', name:'LONGSHOT .308', kind:'MARKSMAN RIFLE', mag:8, reload:2.6, cycle:0.5, auto:false, pellets:1, spread:0.0012, moveSpread:0.03, bloom:0, impulse:6.8,
+    speed:240, pierce:2, damage:{head:260, body:120, legs:80, limb:70}}
 ]);
 
 export const ENEMIES = Object.freeze({
@@ -150,7 +159,7 @@ export class Game {
     this.ammo[w.index]--; w.cooldown = def.cycle; w.queued = 0; this.stats.shots++;
     const origin = this.eyePosition();
     let hand = 1;
-    if (def.id === 'duals') { w.hand = -w.hand; hand = w.hand; if (hand > 0) w.recoilR = 1; else w.recoilL = 1; } else w.recoil = 1;
+    if (def.akimbo) { w.hand = -w.hand; hand = w.hand; if (hand > 0) w.recoilR = 1; else w.recoilL = 1; } else w.recoil = 1;
     const spread = def.spread + (this.moving && !p.diving ? def.moveSpread : 0) + (!p.grounded && !p.diving ? 0.02 : 0) + w.bloom;
     w.bloom = Math.min(0.03, w.bloom + def.bloom);
     const record = {hit:false};
@@ -162,8 +171,8 @@ export class Game {
     const fired = [];
     for (let i = 0; i < def.pellets; i++) {
       const dir = forward(p.yaw + gaussian(this.random)*spread, p.pitch + gaussian(this.random)*spread);
-      const bullet = {id:this.nextId++, owner:'player', pos:origin.slice(), start:origin.slice(), dir, speed:RULES.playerBullet, traveled:0, max:RULES.bulletRange,
-        damage:def.damage, impulse:def.impulse, weapon:def.id, slowShot, midair, offset, record};
+      const bullet = {id:this.nextId++, owner:'player', pos:origin.slice(), start:origin.slice(), dir, speed:def.speed || RULES.playerBullet, traveled:0, max:RULES.bulletRange,
+        damage:def.damage, impulse:def.impulse, weapon:def.id, slowShot, midair, offset, record, pierce:def.pierce || 0};
       this.bullets.push(bullet); fired.push(bullet);
     }
     this.emit('shot', {weapon:def.id, hand, origin, slowShot, yaw:p.yaw, pitch:p.pitch});
@@ -183,7 +192,7 @@ export class Game {
       if (!first || t.distance < first.distance) first = {bullet, distance:t.distance};
     }
     if (!first || total < target.hp) return;
-    const scale = clamp(first.distance / (RULES.playerBullet * RULES.killcamFlight), 0.012, 0.2);
+    const scale = clamp(first.distance / (first.bullet.speed * RULES.killcamFlight), 0.012, 0.2);
     this.killcam = {bullet:first.bullet, record:first.bullet.record, target, phase:'flight', timer:0, scale, corpse:null, distance:first.distance};
     this.weapon.queued = 0;
     this.emit('killcamStart', {distance:first.distance});
@@ -330,8 +339,14 @@ export class Game {
       if (d !== null) this.shatter(g, b.pos.map((v,i) => v + b.dir[i]*d), b.dir);
     }
     if (b.owner === 'player') {
-      const t = traceShot(b.pos, b.dir, [], this.bots, reach);
-      if (t.kind === 'bot') { b.pos = t.point; b.traveled += t.distance; this.hitBot(b, t); return false; }
+      const t = traceShot(b.pos, b.dir, [], b.passed ? this.bots.filter(bot => !b.passed.includes(bot.id)) : this.bots, reach);
+      if (t.kind === 'bot') {
+        b.pos = t.point; b.traveled += t.distance; this.hitBot(b, t);
+        if (!(b.pierce > 0)) return false;
+        // A piercing round carries on through the body with the rest of this tick's travel.
+        b.pierce--; (b.passed ??= []).push(t.bot.id);
+        return this.moveBullet(b, wdt - t.distance/b.speed);
+      }
     } else {
       const p = this.player;
       if (!(p.invulnerable > 0) && !this.busy && this.mode === 'run') {

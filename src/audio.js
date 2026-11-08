@@ -76,6 +76,9 @@ export class Sound {
     switch (type) {
       case 'shot':
         if (data.weapon === 'shotgun') { this.burst(0.4, 0.9, 3200, 0, 'lowpass', 300); this.tone(90, 0.3, 'triangle', 0.6, 0, 30); this.burst(0.08, 0.2, 2500, 0.32, 'bandpass'); this.tone(320, 0.05, 'square', 0.05, 0.38, 200); }
+        else if (data.weapon === 'revolver') { this.burst(0.32, 0.85, 3800, 0, 'lowpass', 260); this.tone(110, 0.28, 'triangle', 0.55, 0, 35); this.burst(0.5, 0.18, 900, 0.08, 'lowpass', 120); }
+        else if (data.weapon === 'vipers') { this.burst(0.07, 0.4, 6000, 0, 'lowpass', 1400); this.tone(190, 0.06, 'triangle', 0.22, 0, 90); }
+        else if (data.weapon === 'rifle') { this.burst(0.06, 0.7, 9000, 0, 'highpass'); this.burst(0.3, 0.7, 4200, 0, 'lowpass', 240); this.tone(130, 0.24, 'triangle', 0.45, 0, 40); this.burst(0.7, 0.12, 1400, 0.12, 'bandpass', 200); this.tone(260, 0.05, 'square', 0.04, 0.3, 160); }
         else if (data.weapon === 'carbine') { this.burst(0.12, 0.55, 5200, 0, 'lowpass', 900); this.tone(150, 0.1, 'triangle', 0.35, 0, 60); }
         else { this.burst(0.17, 0.65, 4200, 0, 'lowpass', 700); this.tone(170, 0.16, 'triangle', 0.45, 0, 50); this.tone(2400, 0.03, 'square', 0.03, 0.05, 1800); }
         break;
