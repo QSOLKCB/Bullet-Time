@@ -263,6 +263,32 @@ test('the final kill of a wave triggers the bullet camera, then play resumes', (
   off.game.player.pitch = Math.atan2(1.93 - 1.68, 15); off.game.requestShot(); assert.equal(off.game.killcam, null);
 });
 
+test('a piercing round that clears the wave gets the final-bullet camera on the last body', () => {
+  const r = WEAPONS.findIndex(w => w.id === 'rifle');
+  const setup = () => {
+    const {game, target} = range('run'); freeze(target);
+    const behind = {...target, id:100, z:-22, hp:100, alive:true}; freeze(behind); game.bots.push(behind);
+    game.wave = 1; game.queue = []; game.breakTimer = 0; game.weapon.index = r;
+    return {game, target, behind};
+  };
+  const {game, target, behind} = setup();
+  game.requestShot();
+  assert.equal(game.killcam?.phase, 'flight', 'one round that kills both remaining enemies gets the camera');
+  assert.equal(game.killcam.target, behind, 'the camera rides to the last body in line');
+  advance(game, RULES.killcamFlight + 0.6);
+  assert.equal(target.alive, false); assert.equal(behind.alive, false);
+  assert.equal(game.killcam?.phase, 'impact');
+  advance(game, RULES.killcamHold + 0.2);
+  const types = game.drainEvents().map(e => e.type);
+  assert.ok(types.includes('killcamStart') && types.includes('killcamImpact') && types.includes('killcamEnd') && types.includes('waveClear'));
+  // If the round can't finish everyone, there's no camera.
+  const tough = setup(); tough.behind.hp = 500; tough.game.requestShot(); assert.equal(tough.game.killcam, null);
+  // Nor when cover shields the last enemy.
+  const covered = setup(); covered.game.world.solids = [boxAt(0, 1, -19, 6, 4, 0.5)]; covered.game.requestShot(); assert.equal(covered.game.killcam, null);
+  // And a non-piercing gun still needs a single last enemy.
+  const pistol = setup(); pistol.game.weapon.index = 0; pistol.game.player.pitch = Math.atan2(1.93 - 1.68, 15); pistol.game.requestShot(); assert.equal(pistol.game.killcam, null);
+});
+
 test('a shotgun final kill keeps the camera through nonlethal pellets and the impact orbit', () => {
   const {game, target} = range('run', {z:-5}, 2); freeze(target);
   game.wave = 1; game.breakTimer = 0; game.weapon.index = 1;

@@ -176,22 +176,37 @@ export class Game {
       this.bullets.push(bullet); fired.push(bullet);
     }
     this.emit('shot', {weapon:def.id, hand, origin, slowShot, yaw:p.yaw, pitch:p.pitch});
-    if (this.options.killcam && !this.killcam && this.isFinalTarget()) this.predictKillcam(fired, def);
+    if (this.options.killcam && !this.killcam && this.isFinalTarget(def.pierce)) this.predictKillcam(fired, def);
     return fired;
   }
-  isFinalTarget() {
-    return this.mode === 'run' && this.queue.length === 0 && this.bots.filter(b => b.alive).length === 1;
+  // The last enemies standing: one, or as many as a piercing round can pass through.
+  isFinalTarget(pierce = 0) {
+    const alive = this.bots.filter(b => b.alive).length;
+    return this.mode === 'run' && this.queue.length === 0 && alive >= 1 && alive <= 1 + (pierce || 0);
   }
-  // If this trigger pull will finish the wave, follow the bullet in.
+  // If this trigger pull will finish the wave, follow the bullet in. Each round
+  // is traced the way moveBullet will fly it: through up to `pierce` bodies,
+  // never through cover. The camera rides to the last body the shot reaches.
   predictKillcam(fired, def) {
-    let total = 0, first = null, target = null;
+    const alive = this.bots.filter(b => b.alive), dealt = new Map(), reached = new Map();
     for (const bullet of fired) {
-      const t = traceShot(bullet.pos, bullet.dir, this.world.solids, this.bots, bullet.max);
-      if (t.kind !== 'bot') continue;
-      total += def.damage[t.part]; target = t.bot;
-      if (!first || t.distance < first.distance) first = {bullet, distance:t.distance};
+      let origin = bullet.pos, travelled = 0, pierce = bullet.pierce || 0;
+      const passed = [];
+      for (;;) {
+        const t = traceShot(origin, bullet.dir, this.world.solids, alive.filter(b => !passed.includes(b)), bullet.max - travelled);
+        if (t.kind !== 'bot') break;
+        travelled += t.distance; origin = t.point;
+        dealt.set(t.bot, (dealt.get(t.bot) || 0) + def.damage[t.part]);
+        const first = reached.get(t.bot);
+        if (!first || travelled < first.distance) reached.set(t.bot, {bullet, distance:travelled});
+        if (pierce-- <= 0) break;
+        passed.push(t.bot);
+      }
     }
-    if (!first || total < target.hp) return;
+    if (!alive.length || alive.some(b => (dealt.get(b) || 0) < b.hp)) return;
+    // Follow the round that arrives first at the farthest body.
+    let target = null, first = null;
+    for (const [bot, hit] of reached) if (!first || hit.distance > first.distance) { target = bot; first = hit; }
     const scale = clamp(first.distance / (first.bullet.speed * RULES.killcamFlight), 0.012, 0.2);
     this.killcam = {bullet:first.bullet, record:first.bullet.record, target, phase:'flight', timer:0, scale, corpse:null, distance:first.distance};
     this.weapon.queued = 0;
