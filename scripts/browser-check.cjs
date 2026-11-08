@@ -150,6 +150,12 @@ const fail = message => { console.error('FAIL:', message); process.exitCode = 1;
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   if (!(await page.locator('#pause').isVisible())) fail('Escape did not pause');
   await shot('08-pause');
+  // The frozen pause frame is drawn once, then retained instead of redrawn.
+  const before = await page.evaluate(() => __bulletTime.frameStats());
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => __bulletTime.frameStats());
+  console.log('pause frames', before, after);
+  if (after.drawn !== before.drawn || after.skipped <= before.skipped) fail('paused frame was redrawn every refresh');
   // Death → results.
   await page.evaluate(() => { const t = __bulletTime; t.beginPlaying(); t.game.player.invulnerable = 0; t.game.damage(500, [0, 1, 0]); });
   await page.locator('#results').waitFor({state:'visible', timeout:8000}).catch(() => fail('death did not reach the results screen'));

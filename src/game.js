@@ -1,6 +1,7 @@
 import {clamp, mix, forward, seededRandom, boxAt, rayBox, segmentDistance} from './math.js';
 import {makeWorld} from './world.js';
 import {Navigation} from './navigation.js';
+import {leadIntercept} from './lead.js';
 
 // Pure, fixed-step simulation. step(dt) always receives REAL time; bullet time
 // is applied here by splitting it into three clocks:
@@ -28,9 +29,9 @@ export const WEAPONS = Object.freeze([
 ]);
 
 export const ENEMIES = Object.freeze({
-  grunt:{hp:100, speed:2.0, scale:1, burst:3, interval:0.14, windup:0.55, wait:[1.6,2.7], spread:0.035, damage:8, pellets:1, range:34, near:9, far:21, points:100},
-  runner:{hp:70, speed:3.4, scale:0.93, burst:5, interval:0.1, windup:0.45, wait:[1.9,3.0], spread:0.06, damage:6, pellets:1, range:28, near:6, far:14, points:120},
-  heavy:{hp:240, speed:1.45, scale:1.18, burst:2, interval:0.5, windup:0.7, wait:[2.3,3.2], spread:0.09, damage:7, pellets:6, range:24, near:5, far:10, points:200}
+  grunt:{hp:100, speed:2.0, scale:1, burst:3, interval:0.14, windup:0.55, wait:[1.6,2.7], spread:0.035, lead:0.6, damage:8, pellets:1, range:34, near:9, far:21, points:100},
+  runner:{hp:70, speed:3.4, scale:0.93, burst:5, interval:0.1, windup:0.45, wait:[1.9,3.0], spread:0.06, lead:0.4, damage:6, pellets:1, range:28, near:6, far:14, points:120},
+  heavy:{hp:240, speed:1.45, scale:1.18, burst:2, interval:0.5, windup:0.7, wait:[2.3,3.2], spread:0.09, lead:0, damage:7, pellets:6, range:24, near:5, far:10, points:200}
 });
 
 export function hitboxes(bot) {
@@ -92,7 +93,7 @@ export class Game {
     this.finished = false; this.events = []; this.dying = 0; this.moving = false;
     const [sx, sz] = this.world.start;
     this.player = {x:sx, y:0, z:sz, yaw:0, pitch:0, vy:0, grounded:true, crouch:false, health:RULES.health, invulnerable:1.5,
-      diving:false, diveX:0, diveZ:0, diveSide:0, prone:0, diveCooldown:0, eye:1.68, roll:0};
+      vx:0, vz:0, diving:false, diveX:0, diveZ:0, diveSide:0, prone:0, diveCooldown:0, eye:1.68, roll:0};
     this.ammo = WEAPONS.map(w => w.mag);
     this.weapon = {index:0, cooldown:0, reload:0, switching:0, recoil:0, recoilL:0, recoilR:0, hand:-1, bloom:0, queued:0};
     this.stats = {score:0, kills:0, shots:0, hits:0, heads:0, slowKills:0, airKills:0, longKills:0, glass:0, bestCombo:0, waves:0, time:0, focusTime:0, dives:0};
@@ -217,6 +218,7 @@ export class Game {
     let dz = Number.isFinite(input.moveZ) ? clamp(input.moveZ, -1, 1) : Number(!!input.forward) - Number(!!input.back);
     const length = Math.max(1, Math.hypot(dx, dz)); dx /= length; dz /= length;
     this.moving = false;
+    const x0 = p.x, z0 = p.z;
     if (p.diving) moveBody(p, p.diveX*RULES.diveSpeed*pdt, p.diveZ*RULES.diveSpeed*pdt, this.blockers, 0.3, 0.8, box => {
       if (box.intact === undefined) return false;
       this.shatter(box, [p.x, p.y+0.4, p.z], [p.diveX, 0, p.diveZ]);
@@ -232,6 +234,9 @@ export class Game {
       moveBody(p, (cs*dx + sn*dz)*speed*pdt, (sn*dx - cs*dz)*speed*pdt, this.blockers, 0.3, this.playerHeight());
       if (input.jump && p.grounded && !p.crouch) { p.vy = RULES.jump; p.grounded = false; }
     }
+    // Ground velocity at the player's own pace (player clock), which is what
+    // enemies read when they lead a shot. Bent-time movement outruns that read.
+    if (pdt > 0) { p.vx = (p.x - x0)/pdt; p.vz = (p.z - z0)/pdt; }
     const height = this.playerHeight(), oldY = p.y;
     p.vy -= (p.diving ? RULES.diveGravity : RULES.gravity) * pdt; p.y += p.vy * pdt;
     const wasAirborne = !p.grounded; p.grounded = false;
@@ -409,11 +414,22 @@ export class Game {
     const def = ENEMIES[b.type], sight = this.botSight(b);
     if (!sight.visible) return false;
     const p = this.player, error = def.spread + (p.diving ? 0.07 : 0) + (this.moving ? 0.022 : 0) + (p.prone > 0 ? 0.02 : 0);
-    const delta = sight.point.map((v,i) => v - sight.origin[i]), d = sight.distance || 1;
+    const speed = RULES.enemyBullet*(b.type === 'heavy' ? 0.9 : 1);
+    let point = sight.point;
+    // Lead a walking target part of the way to the intercept. Nobody can read a
+    // shootdodge, and a lead point behind cover falls back to the direct line.
+    if (def.lead > 0 && !p.diving && (p.vx || p.vz)) {
+      const hit = leadIntercept(sight.origin, sight.point, [p.vx, 0, p.vz], speed, def.range/speed);
+      if (hit) {
+        const aim = point.map((v,i) => v + (hit.point[i] - v)*def.lead);
+        if (!this.lineBlocked(sight.origin, aim)) point = aim;
+      }
+    }
+    const delta = point.map((v,i) => v - sight.origin[i]), d = Math.hypot(...delta) || 1;
     const yaw = Math.atan2(delta[0], -delta[2]), pitch = Math.asin(clamp(delta[1]/d, -1, 1));
     for (let i = 0; i < def.pellets; i++) {
       const dir = forward(yaw + gaussian(this.random)*error, pitch + gaussian(this.random)*error*0.6);
-      this.bullets.push({id:this.nextId++, owner:'enemy', pos:sight.origin.slice(), start:sight.origin.slice(), dir, speed:RULES.enemyBullet*(b.type === 'heavy' ? 0.9 : 1),
+      this.bullets.push({id:this.nextId++, owner:'enemy', pos:sight.origin.slice(), start:sight.origin.slice(), dir, speed,
         traveled:0, max:60, damage:def.damage, from:[b.x, b.y + 1.2, b.z], type:b.type});
     }
     this.emit('enemyShot', {origin:sight.origin, type:b.type});

@@ -3,12 +3,17 @@ import {Renderer} from './renderer.js';
 import {Sound} from './audio.js';
 import {XboxInput} from './controller.js';
 import {FixedClock} from './clock.js';
+import {FrameGate} from './frame-gate.js';
 import {clamp, seededRandom} from './math.js';
 import {WEAPON_SKINS, ENEMY_SKINS, normalizeSkins} from './skins.js';
 // Browser shell: input, lifecycle, effects, Canvas overlay and HUD. The pure
 // simulation lives in game.js (structure adapted from QSOLKCB/QUICKSCOPER).
 const $ = id => document.getElementById(id), canvas = $('world'), overlay = $('overlay'), ctx = overlay.getContext('2d');
-const sound = new Sound(), controller = new XboxInput(), clock = new FixedClock({step:1/120, maxFrame:0.1}), fx = seededRandom(4242);
+const sound = new Sound(), controller = new XboxInput(), clock = new FixedClock({step:1/120, maxFrame:0.1, snapTolerance:0.0005}), fx = seededRandom(4242);
+// Paused and results screens show a frozen world: the gate redraws it only when
+// something that feeds the image changes, instead of every display refresh.
+const frameGate = new FrameGate();
+let contextEpoch = 0;
 document.addEventListener('pointerdown', () => { if (sound.context?.state !== 'running') sound.start(); }, {passive:true});
 const storage = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
@@ -63,7 +68,7 @@ function syncPrefs() {
   $('guide-focus').textContent = xbox ? 'LT' : 'Q / RMB'; $('guide-dive').textContent = xbox ? 'B' : 'SHIFT';
   $('guide-fire').textContent = xbox ? 'RT' : 'LMB'; $('guide-weapons').textContent = xbox ? 'Y / LB / RB' : '1 2 3';
   sound.setVolume(prefs.volume); sound.setMusicVolume(prefs.musicVolume); game.options.killcam = prefs.killcam;
-  renderer?.setSkins(prefs.skins); syncSkinButtons();
+  renderer?.setSkins(prefs.skins); syncSkinButtons(); frameGate.invalidate();
   storage.set('bullettime.settings', prefs);
 }
 for (const [id, key] of [['sensitivity','sensitivity'],['pad-sensitivity','padSensitivity'],['deadzone','deadzone'],['volume','volume'],['music-volume','musicVolume'],
@@ -104,7 +109,7 @@ buildSkins(); $('help-open').onclick = () => $('help').showModal();
 
 // ---- Lifecycle --------------------------------------------------------------
 function setScreen(next) {
-  state = next; if (next !== 'playing') sound.stopMusic();
+  state = next; frameGate.invalidate(); if (next !== 'playing') sound.stopMusic();
   $('menu').hidden = next !== 'menu'; $('pause').hidden = next !== 'paused'; $('results').hidden = next !== 'results'; $('hud').hidden = next === 'menu' || next === 'results';
   if (next !== 'playing') sound.setSlow(0);
 }
@@ -487,14 +492,19 @@ function frame(now) {
   }
   sound.music(state === 'playing', Math.min(3, game.combo + (game.wave >= 4 ? 1 : 0)));
   if (renderer && !graphicsLost) {
-    renderer.render(game, effects, {menu:state === 'menu', time:now/1000, quality:prefs.lowQuality ? 0 : 1, reduced:prefs.reduced});
-    drawOverlay(now/1000);
+    const draw = () => { renderer.render(game, effects, {menu:state === 'menu', time:now/1000, quality:prefs.lowQuality ? 0 : 1, reduced:prefs.reduced}); drawOverlay(now/1000); };
+    if (state === 'playing' || state === 'menu') { frameGate.invalidate(); draw(); }
+    else {
+      // Everything that can change a frozen frame: screen, simulation tick and view size.
+      const dpr = devicePixelRatio || 1, width = Math.max(1, Math.round(canvas.clientWidth*dpr)), height = Math.max(1, Math.round(canvas.clientHeight*dpr));
+      frameGate.present({key:`${state}|${clock.ticks}|${dpr}`, width, height, contextEpoch}, draw);
+    }
   }
   requestAnimationFrame(frame);
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); graphicsLost = true; pauseGame(); $('lock-message').textContent = 'Graphics context lost. Reload this page to restore the renderer.'; $('resume').disabled = true; });
 canvas.addEventListener('webglcontextrestored', () => {
-  try { renderer = new Renderer(canvas, game.world); renderer.setSkins(prefs.skins); graphicsLost = false; $('resume').disabled = false; $('lock-message').textContent = 'Graphics restored. Resume when ready.'; }
+  try { renderer = new Renderer(canvas, game.world); renderer.setSkins(prefs.skins); graphicsLost = false; contextEpoch++; frameGate.invalidate(); $('resume').disabled = false; $('lock-message').textContent = 'Graphics restored. Resume when ready.'; }
   catch (error) { $('lock-message').textContent = error.message; }
 });
 async function offline() {
@@ -515,4 +525,4 @@ catch (error) { showError(error.message); $('start').disabled = true; }
 $('start').focus();
 offline();
 // Test hook for automated browser checks only (no gameplay effect).
-if (new URLSearchParams(location.search).has('test')) globalThis.__bulletTime = {get game() { return game; }, get state() { return state; }, effects, beginPlaying, startRun};
+if (new URLSearchParams(location.search).has('test')) globalThis.__bulletTime = {get game() { return game; }, get state() { return state; }, effects, beginPlaying, startRun, frameStats:() => frameGate.stats()};
